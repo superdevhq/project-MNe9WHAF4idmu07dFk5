@@ -1,11 +1,16 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import P5Sketch from '@/components/P5Sketch';
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
+    <div className="relative min-h-screen overflow-hidden">
+      <P5Sketch />
+      <div className="relative z-10 min-h-screen flex items-center justify-center">
+        <div className="text-center bg-black/30 backdrop-blur-sm p-8 rounded-lg shadow-xl">
+          <h1 className="text-5xl font-bold mb-4 text-white">Interactive Particles</h1>
+          <p className="text-xl text-gray-200 mb-6">Move your mouse to interact with the particles</p>
+          <p className="text-sm text-gray-300">Created with p5.js</p>
+        </div>
       </div>
     </div>
   );
