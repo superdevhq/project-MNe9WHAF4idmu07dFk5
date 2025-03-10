@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import ThreeBear from '@/components/ThreeBear';
+import { Link } from 'react-router-dom';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -37,8 +38,13 @@ const Login = () => {
           </CardHeader>
           
           {/* 3D Bear Container */}
-          <div className="w-full h-64 mb-4">
+          <div className="w-full h-64 mb-4 relative">
             <ThreeBear isEyesClosed={isPasswordFocused && (isTypingPassword || password.length > 0)} />
+            <div className="absolute top-2 left-0 right-0 text-center">
+              <p className="text-xs text-gray-500 italic">
+                Move your mouse to make the bear follow it!
+              </p>
+            </div>
           </div>
           
           <CardContent>
@@ -86,13 +92,16 @@ const Login = () => {
             </form>
           </CardContent>
           
-          <CardFooter className="flex justify-center border-t pt-4">
+          <CardFooter className="flex flex-col space-y-4 border-t pt-4">
             <p className="text-sm text-gray-500">
               Don't have an account?{" "}
               <a href="#" className="text-blue-600 hover:underline">
                 Sign up
               </a>
             </p>
+            <Link to="/" className="text-sm text-blue-600 hover:underline">
+              Back to Home
+            </Link>
           </CardFooter>
         </Card>
       </div>

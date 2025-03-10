@@ -13,6 +13,40 @@ const ThreeBear: React.FC<ThreeBearProps> = ({ isEyesClosed }) => {
   const [bearHead, setBearHead] = useState<THREE.Group | null>(null);
   const [leftEye, setLeftEye] = useState<THREE.Mesh | null>(null);
   const [rightEye, setRightEye] = useState<THREE.Mesh | null>(null);
+  const [controls, setControls] = useState<OrbitControls | null>(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isMouseMoving, setIsMouseMoving] = useState(false);
+  const mouseTimerRef = useRef<number | null>(null);
+
+  // Track mouse position
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      // Calculate normalized mouse position (-1 to 1)
+      const x = (event.clientX / window.innerWidth) * 2 - 1;
+      const y = -((event.clientY / window.innerHeight) * 2 - 1);
+      
+      setMousePosition({ x, y });
+      setIsMouseMoving(true);
+      
+      // Reset the mouse moving flag after a short delay
+      if (mouseTimerRef.current) {
+        window.clearTimeout(mouseTimerRef.current);
+      }
+      
+      mouseTimerRef.current = window.setTimeout(() => {
+        setIsMouseMoving(false);
+      }, 300);
+    };
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      if (mouseTimerRef.current) {
+        window.clearTimeout(mouseTimerRef.current);
+      }
+    };
+  }, []);
 
   // Setup the scene
   useEffect(() => {
@@ -38,14 +72,15 @@ const ThreeBear: React.FC<ThreeBearProps> = ({ isEyesClosed }) => {
     mountRef.current.appendChild(renderer.domElement);
 
     // Controls
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.enableZoom = true;
-    controls.enablePan = false;
-    controls.rotateSpeed = 0.5;
-    controls.minDistance = 3;
-    controls.maxDistance = 8;
+    const orbitControls = new OrbitControls(camera, renderer.domElement);
+    orbitControls.enableDamping = true;
+    orbitControls.dampingFactor = 0.05;
+    orbitControls.enableZoom = true;
+    orbitControls.enablePan = false;
+    orbitControls.rotateSpeed = 0.5;
+    orbitControls.minDistance = 3;
+    orbitControls.maxDistance = 8;
+    setControls(orbitControls);
 
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -123,7 +158,7 @@ const ThreeBear: React.FC<ThreeBearProps> = ({ isEyesClosed }) => {
     // Animation loop
     const animate = () => {
       requestAnimationFrame(animate);
-      controls.update();
+      orbitControls.update();
       renderer.render(scene, camera);
     };
     animate();
@@ -162,20 +197,69 @@ const ThreeBear: React.FC<ThreeBearProps> = ({ isEyesClosed }) => {
     }
   }, [isEyesClosed, leftEye, rightEye]);
 
-  // Add some gentle animation to the bear
+  // Make bear follow mouse
   useEffect(() => {
-    if (!bearHead) return;
+    if (!bearHead || !isMouseMoving || isEyesClosed) return;
+
+    // Calculate target rotation based on mouse position
+    // Limit the rotation to a reasonable range
+    const targetRotationX = mousePosition.y * 0.5; // Vertical look (up/down)
+    const targetRotationY = mousePosition.x * 0.8; // Horizontal look (left/right)
+    
+    // Smoothly animate to the target rotation
+    const animateBearToMouse = () => {
+      // Current rotations
+      const currentRotationX = bearHead.rotation.x;
+      const currentRotationY = bearHead.rotation.y;
+      
+      // Calculate new rotations with easing
+      const newRotationX = currentRotationX + (targetRotationX - currentRotationX) * 0.05;
+      const newRotationY = currentRotationY + (targetRotationY - currentRotationY) * 0.05;
+      
+      // Apply new rotations
+      bearHead.rotation.x = newRotationX;
+      bearHead.rotation.y = newRotationY;
+      
+      // Continue animation
+      requestAnimationFrame(animateBearToMouse);
+    };
+    
+    // Start the animation
+    const animationId = requestAnimationFrame(animateBearToMouse);
+    
+    // Cleanup
+    return () => {
+      cancelAnimationFrame(animationId);
+    };
+  }, [bearHead, mousePosition, isMouseMoving, isEyesClosed]);
+
+  // Add some gentle idle animation to the bear when not following mouse
+  useEffect(() => {
+    if (!bearHead || isMouseMoving) return;
 
     const interval = setInterval(() => {
       // Gentle bobbing motion
       bearHead.position.y = Math.sin(Date.now() * 0.001) * 0.05;
       
-      // Slight head tilt
-      bearHead.rotation.z = Math.sin(Date.now() * 0.0005) * 0.05;
+      // Slight head tilt when not tracking mouse
+      if (!isMouseMoving) {
+        bearHead.rotation.z = Math.sin(Date.now() * 0.0005) * 0.05;
+        
+        // Gentle looking around when idle
+        bearHead.rotation.y = Math.sin(Date.now() * 0.0003) * 0.2;
+        bearHead.rotation.x = Math.sin(Date.now() * 0.0004) * 0.1;
+      }
     }, 16);
 
     return () => clearInterval(interval);
-  }, [bearHead]);
+  }, [bearHead, isMouseMoving]);
+
+  // Disable orbit controls when mouse is moving (to prevent conflicts)
+  useEffect(() => {
+    if (!controls) return;
+    
+    controls.enabled = !isMouseMoving;
+  }, [controls, isMouseMoving]);
 
   return <div ref={mountRef} className="w-full h-full" />;
 };
