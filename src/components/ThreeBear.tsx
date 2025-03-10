@@ -17,13 +17,15 @@ const ThreeBear: React.FC<ThreeBearProps> = ({ isEyesClosed }) => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isMouseMoving, setIsMouseMoving] = useState(false);
   const mouseTimerRef = useRef<number | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   // Track mouse position
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
       // Calculate normalized mouse position (-1 to 1)
       const x = (event.clientX / window.innerWidth) * 2 - 1;
-      const y = -((event.clientY / window.innerHeight) * 2 - 1);
+      // Invert the Y value to fix the direction issue
+      const y = (event.clientY / window.innerHeight) * 2 - 1; // Removed the negative sign
       
       setMousePosition({ x, y });
       setIsMouseMoving(true);
@@ -197,62 +199,63 @@ const ThreeBear: React.FC<ThreeBearProps> = ({ isEyesClosed }) => {
     }
   }, [isEyesClosed, leftEye, rightEye]);
 
-  // Make bear follow mouse
+  // Combined animation effect for both mouse tracking and idle
   useEffect(() => {
-    if (!bearHead || !isMouseMoving || isEyesClosed) return;
-
-    // Calculate target rotation based on mouse position
-    // Limit the rotation to a reasonable range
-    const targetRotationX = mousePosition.y * 0.5; // Vertical look (up/down)
-    const targetRotationY = mousePosition.x * 0.8; // Horizontal look (left/right)
+    if (!bearHead) return;
     
-    // Smoothly animate to the target rotation
-    const animateBearToMouse = () => {
-      // Current rotations
-      const currentRotationX = bearHead.rotation.x;
-      const currentRotationY = bearHead.rotation.y;
+    // Store initial position for reference
+    const initialY = 0;
+    
+    // Single animation function that handles both mouse tracking and idle
+    const animateBear = () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
       
-      // Calculate new rotations with easing
-      const newRotationX = currentRotationX + (targetRotationX - currentRotationX) * 0.05;
-      const newRotationY = currentRotationY + (targetRotationY - currentRotationY) * 0.05;
+      const animate = () => {
+        // Always apply gentle bobbing motion to Y position
+        bearHead.position.y = initialY + Math.sin(Date.now() * 0.001) * 0.05;
+        
+        if (isMouseMoving && !isEyesClosed) {
+          // Mouse tracking mode
+          // Calculate target rotation based on mouse position
+          const targetRotationX = -mousePosition.y * 0.5; // Inverted for correct direction
+          const targetRotationY = mousePosition.x * 0.8;
+          
+          // Smoothly animate to the target rotation
+          bearHead.rotation.x = bearHead.rotation.x + (targetRotationX - bearHead.rotation.x) * 0.05;
+          bearHead.rotation.y = bearHead.rotation.y + (targetRotationY - bearHead.rotation.y) * 0.05;
+          
+          // Keep a slight z-tilt for character
+          bearHead.rotation.z = Math.sin(Date.now() * 0.0005) * 0.02;
+        } else if (!isEyesClosed) {
+          // Idle animation mode - very subtle movements
+          // Gentle looking around when idle
+          const idleRotationX = Math.sin(Date.now() * 0.0004) * 0.1;
+          const idleRotationY = Math.sin(Date.now() * 0.0003) * 0.2;
+          
+          // Smoothly transition to idle rotations
+          bearHead.rotation.x = bearHead.rotation.x + (idleRotationX - bearHead.rotation.x) * 0.01;
+          bearHead.rotation.y = bearHead.rotation.y + (idleRotationY - bearHead.rotation.y) * 0.01;
+          bearHead.rotation.z = Math.sin(Date.now() * 0.0005) * 0.05;
+        }
+        
+        animationFrameRef.current = requestAnimationFrame(animate);
+      };
       
-      // Apply new rotations
-      bearHead.rotation.x = newRotationX;
-      bearHead.rotation.y = newRotationY;
-      
-      // Continue animation
-      requestAnimationFrame(animateBearToMouse);
+      animationFrameRef.current = requestAnimationFrame(animate);
     };
     
     // Start the animation
-    const animationId = requestAnimationFrame(animateBearToMouse);
+    animateBear();
     
     // Cleanup
     return () => {
-      cancelAnimationFrame(animationId);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
     };
   }, [bearHead, mousePosition, isMouseMoving, isEyesClosed]);
-
-  // Add some gentle idle animation to the bear when not following mouse
-  useEffect(() => {
-    if (!bearHead || isMouseMoving) return;
-
-    const interval = setInterval(() => {
-      // Gentle bobbing motion
-      bearHead.position.y = Math.sin(Date.now() * 0.001) * 0.05;
-      
-      // Slight head tilt when not tracking mouse
-      if (!isMouseMoving) {
-        bearHead.rotation.z = Math.sin(Date.now() * 0.0005) * 0.05;
-        
-        // Gentle looking around when idle
-        bearHead.rotation.y = Math.sin(Date.now() * 0.0003) * 0.2;
-        bearHead.rotation.x = Math.sin(Date.now() * 0.0004) * 0.1;
-      }
-    }, 16);
-
-    return () => clearInterval(interval);
-  }, [bearHead, isMouseMoving]);
 
   // Disable orbit controls when mouse is moving (to prevent conflicts)
   useEffect(() => {
