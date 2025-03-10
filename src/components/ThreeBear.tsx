@@ -24,8 +24,10 @@ const ThreeBear: React.FC<ThreeBearProps> = ({ isEyesClosed }) => {
     const handleMouseMove = (event: MouseEvent) => {
       // Calculate normalized mouse position (-1 to 1)
       const x = (event.clientX / window.innerWidth) * 2 - 1;
-      // Invert the Y value to fix the direction issue
-      // When mouse is at the bottom (high Y value), we want negative Y for the bear to look down
+      
+      // For Y, we want positive values when mouse is at the top,
+      // and negative values when mouse is at the bottom
+      // This is the opposite of screen coordinates where Y increases downward
       const y = -((event.clientY / window.innerHeight) * 2 - 1);
       
       setMousePosition({ x, y });
@@ -220,7 +222,13 @@ const ThreeBear: React.FC<ThreeBearProps> = ({ isEyesClosed }) => {
         if (isMouseMoving && !isEyesClosed) {
           // Mouse tracking mode
           // Calculate target rotation based on mouse position
-          const targetRotationX = mousePosition.y * 0.5; // Using the correct sign for vertical tracking
+          // For X rotation (up/down tilting), we use the Y mouse position
+          // Positive Y mouse position (top of screen) should make the bear look up (negative X rotation)
+          // Negative Y mouse position (bottom of screen) should make the bear look down (positive X rotation)
+          const targetRotationX = -mousePosition.y * 0.5; // Negative sign to invert the direction
+          
+          // For Y rotation (left/right turning), we use the X mouse position
+          // This works correctly as is - positive X (right side) makes bear look right (positive Y rotation)
           const targetRotationY = mousePosition.x * 0.8;
           
           // Smoothly animate to the target rotation
